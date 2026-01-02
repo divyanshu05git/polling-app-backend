@@ -14,6 +14,7 @@ model User {
   email    String   @unique
   password String
   rooms    Room[]
+  polls    Poll[]
 }
 
 model Room{
@@ -22,6 +23,18 @@ model Room{
   roomLink  String   @unique
   createdAt DateTime @default(now())
   adminId   Int
-
+  question  String?
+  isActive  Boolean  @default(false)
+  polls     Poll[]
   admin     User    @relation(fields:[adminId],references:[id])
+}
+
+model Poll{
+  id       Int     @id @default(autoincrement())
+  roomId   Int
+  userId   Int
+  polls    String[] //can have multiple polls
+
+  room     Room    @relation(fields:[roomId] , references:[id])
+  user     User    @relation(fields:[userId] , references:[id])
 }
