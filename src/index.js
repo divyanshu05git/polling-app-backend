@@ -94,20 +94,17 @@ app.post('/room',middleware,async(req,res)=>{
         })
     }
 
-    //for now
-    const roomLink=crypto.randomBytes(16).toString('hex');
 
     try{
         const room = await prisma.room.create({
             data:{
                 roomName,
-                roomLink,
                 adminId:req.userId
             }
         })
 
         res.json({
-            roomLink:room.roomLink
+            roomId:room.id
         })
     }
     catch(err){
@@ -120,13 +117,13 @@ app.post('/room',middleware,async(req,res)=>{
 })
 
 
-app.get('/room/:roomLink',middleware,async(req,res)=>{
-    const {roomLink} = req.params;
+app.get('/room/:roomId',middleware,async(req,res)=>{
+    const {roomId} = req.params;
     
     try{
         const room= await prisma.room.findUnique({
             where:{
-                roomLink
+                id: Number(roomId)
             }
         })
 

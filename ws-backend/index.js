@@ -2,6 +2,7 @@ import { WebSocketServer } from 'ws';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../src/db.js';
 import dotenv from 'dotenv';
+import { parse } from 'path';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || "BEVHJBbkud"
@@ -24,12 +25,84 @@ function checkUser(token){
     }
 }
 
-wss.on('connection', function connection(ws) {
-  ws.on('error', console.error);
+wss.on('connection', function connection(ws,request) {
 
-  ws.on('message', function message(data) {
-    console.log('received: %s', data);
-  });
+  const url  = request.url;
 
-  ws.send('something');
+  if(!url){
+    return;
+  }
+
+  const queryParams = new URLSearchParams(url.split('?')[1]);
+  const token = queryParams.get('token');
+  const userId= checkUser(token);
+
+  if(!userId){
+    ws.close();
+    return ;
+  }
+
+  users.push({
+    userId,
+    rooms:[],
+    ws
+  })
+
+  ws.on('message', async function message(data){
+    let parsedData;
+
+    if(typeof data !== 'string'){
+      parsedData = JSON.parse(data.toString());
+    }
+    else{
+      parsedData = JSON.parse(data);
+    }
+
+    try{
+      if(parsedData.type === 'join_room'){
+        const user = users.find(u => u.ws===ws);
+        user?.rooms.push(parsedData.roomId)
+        console.log(userId+" joined room"+parsedData.roomId);
+        console.log(users);
+      }
+
+      if(parsedData.type === 'leave_room'){
+        const user = users.find(u => u.ws===ws);
+
+        if(!user) return;
+
+        user.rooms = user?.rooms.filter(x => x!==parsedData.room);
+      }
+
+      if(parsedData.type === 'poll'){
+        const roomId= parsedData.roomId;
+        const polls = parsedData.polls;
+
+    
+
+        await prisma.poll.create({
+          data:{
+            roomId: Number(roomId),
+            polls: polls, 
+            userId: userId
+          }
+        })
+
+        users.forEach(u =>{
+          if(u.rooms.includes(roomId)){
+            u.ws.send(JSON.stringify({
+              type: 'poll',
+              polls: polls,
+              roomId
+            }))
+          }
+        })
+      }
+    }
+    catch(err){
+
+    }
+  })
+
+  
 });
